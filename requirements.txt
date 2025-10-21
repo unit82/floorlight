@@ -1,0 +1,2 @@
+pigpio==1.78
+python3-rpi.gpio
