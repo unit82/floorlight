@@ -4,21 +4,28 @@ import time, math
 
 
 class LedSoftPwmGPIO:
-    def __init__(self, pin=12, f_pwm=2000, gamma=1.2):
-        self.pin   = pin
+    def __init__(self, pin0=12, pin1=13, f_pwm=2000, gamma=1.2):
+        self.pin0  = pin0
+        self.pin1  = pin1
         self.f_pwm = f_pwm           # 2 kHz ist ein guter Kompromiss
         self.Tpwm  = 1.0 / f_pwm
         self.gamma = gamma
         GPIO.setwarnings(False)
         GPIO.setmode(GPIO.BCM)
-        GPIO.setup(self.pin, GPIO.OUT)
-        self.pwm = GPIO.PWM(self.pin, self.f_pwm)
-        self.pwm.start(0.0)
+        GPIO.setup(self.pin0, GPIO.OUT)
+        GPIO.setup(self.pin1, GPIO.OUT)
+        self.pwm0 = GPIO.PWM(self.pin0, self.f_pwm)
+        self.pwm1 = GPIO.PWM(self.pin1, self.f_pwm)
+        self.pwm0.start(0.0)
+        self.pwm1.start(0.0)
 
-    def _apply_percent(self, pct):
-        if pct < 0: pct = 0
-        if pct > 100: pct = 100
-        self.pwm.ChangeDutyCycle(pct)
+    def _apply_percent(self, pct0, pct1=0):
+        if pct0 < 0: pct0 = 0
+        if pct0> 100: pct0= 100
+        if pct1 < 0: pct1 = 0
+        if pct1> 100: pct1= 100
+        self.pwm0.ChangeDutyCycle(pct0)
+        self.pwm1.ChangeDutyCycle(pct1)
 
     def _set_level_dithered(self, level01, window=100):
         """Gibt 'level01' (0..1) über 'window' PWM-Perioden dithered aus."""
@@ -67,6 +74,7 @@ class LedSoftPwmGPIO:
     def close(self):
         try:
             self.off()
-            self.pwm.stop()
+            self.pwm0.stop()
+            self.pwm1.stop()
         finally:
             GPIO.cleanup(self.pin)
