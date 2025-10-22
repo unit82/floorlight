@@ -1,49 +1,28 @@
 #!/usr/bin/env python3
-from __future__ import annotations
-import time
 import RPi.GPIO as GPIO
+import time, math
+from led import LedSoftPwmGPIO
 
-PWM_PIN = 12        # GPIO 12 (Pin 32)
-FREQUENCY = 3000    # 3 kHz
-
-def main() -> int:
-    GPIO.setwarnings(False)
-    GPIO.setmode(GPIO.BCM)
-    GPIO.setup(PWM_PIN, GPIO.OUT)
-
-    pwm = GPIO.PWM(PWM_PIN, FREQUENCY)
-    pwm.start(0)
-
-    RampTime = 4     # Sekunden für Auf- oder Abwärtsrampe
-    steps = 100      # Anzahl Schritte
-    delay = RampTime / steps
-
-    print(f"Starte Rampenlauf: {RampTime}s auf / {RampTime}s ab, {steps} Schritte, {delay:.4f}s pro Schritt.")
-
+def main():
+    led = LedSoftPwmGPIO(pin=12, f_pwm=2000, gamma=1.1)
     try:
-        # Aufwärtsrampe
-        for i in range(steps + 1):
-            duty = i * 100 / steps
-            pwm.ChangeDutyCycle(duty)
-            time.sleep(delay)
 
-        time.sleep(2)
+        led.ramp(duration_s=5.0, start_level=0.0, end_level=0.25)
+        time.sleep(2.0)
+        
+        # 2 s von 0.5 → 1.0 (volle Helligkeit)
+        led.ramp(duration_s=2.0, start_level=0.25, end_level=1.0)
+        time.sleep(2.0)
 
-        # Abwärtsrampe
-        for i in range(steps, -1, -1):
-            duty = i * 100 / steps
-            pwm.ChangeDutyCycle(duty)
-            time.sleep(delay)
+        # 4 s von 1.0 → 0.2 (gedimmtes Ausklingen)
+        led.ramp(duration_s=4.0, start_level=1.0, end_level=0.1)
+        time.sleep(2.0)
+        led.set_level(1, settle_ms=10)
+        time.sleep(1.0)
+        led.off()
 
-        time.sleep(2)
-
-    except KeyboardInterrupt:
-        print("Beendet durch Benutzer.")
     finally:
-        pwm.stop()
-        GPIO.cleanup()
-        print("GPIO aufgeräumt, PWM gestoppt.")
-    return 0
+        led.close()
 
 if __name__ == "__main__":
     main()
