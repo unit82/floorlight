@@ -4,6 +4,9 @@ import time, math
 from led import LedSoftPwmGPIO
 
 def main():
+    start_level = 0.0
+    end_level = 0.3
+    sleep_time = 1.0
     # GPIO setup to BCM mode (explanation: https://pinout.xyz/pinout/bcm)
     GPIO.setmode(GPIO.BCM)
     # GPIO setup for the LED pins
@@ -14,18 +17,23 @@ def main():
     try:
         #led0.set_level(0.05, settle_ms=10)
         #time.sleep(3.0)
-        led0.ramp(duration_s=5.0, start_level=0, end_level=0.01)
-        time.sleep(3.0)
-        led1.ramp(duration_s=5.0, start_level=0, end_level=0.01)
+        led0.ramp(duration_s=5.0, start_level=start_level, end_level=end_level)
+        time.sleep(sleep_time)
+        led1.ramp(duration_s=5.0, start_level=start_level, end_level=end_level)
         #led1.ramp(duration_s=5.0, start_level=0.01, end_level=0.001)
-        time.sleep(1.0)
-        led0.ramp(duration_s=5.0, start_level=0.01, end_level=0.0)
-        time.sleep(3.0)
-        led1.ramp(duration_s=5.0, start_level=0.01, end_level=0.0)
+        time.sleep(sleep_time)
+        led0.ramp(duration_s=5.0, start_level=end_level, end_level=0.0)
+        time.sleep(sleep_time)
+        led1.ramp(duration_s=5.0, start_level=end_level, end_level=0.0)
 
         # Directly set to full brightness
         #led0.set_level(1, settle_ms=10)
-        time.sleep(1.0)
+        for i in range(20):
+            time.sleep(sleep_time/10)
+            led0.set_level(0.4, settle_ms=10)
+            time.sleep(sleep_time/10)
+            led0.set_level(0.6, settle_ms=10)
+        time.sleep(sleep_time)
 
         # Fade out
         led0.off()
