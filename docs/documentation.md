@@ -20,7 +20,6 @@ sudo nano /etc/systemd/system/floorlight.service
 
 #### 2️⃣ Inhalt einfügen
 
-*(Den Namen `floorlight` kannst du natürlich anpassen.)*
 
 ```ini
 [Unit]
@@ -28,27 +27,18 @@ Description=Floorlight PWM Script
 After=network.target
 
 [Service]
-ExecStart=/usr/bin/python3 /home/pi/floorlight/python/src/main.py
-WorkingDirectory=/home/pi/floorlight/python/src
+ExecStart=/usr/bin/python3 /home/oliver/pi/floorlight/python/src/main.py
+WorkingDirectory=/home/oliver/pi/floorlight/python/src
 StandardOutput=inherit
 StandardError=inherit
 Restart=always
-User=pi
+User=oliver
 Environment=PYTHONUNBUFFERED=1
 
 [Install]
 WantedBy=multi-user.target
 ```
 
-✅ **Achte auf die Pfade** — ersetze sie, falls dein Projektverzeichnis oder Benutzername anders ist.  
-Beispiel:
-```
-/home/oliver/floorlight/...
-```
-statt  
-```
-/home/pi/floorlight/...
-```
 
 ---
 
@@ -91,3 +81,6 @@ Wenn du Änderungen an der Service-Datei machst, vergiss nicht, den Daemon neu z
 ```bash
 sudo systemctl daemon-reload
 ```
+
+# VS Code
+VS Code: Remote-SSH verbinden
