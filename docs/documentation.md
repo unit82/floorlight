@@ -18,7 +18,7 @@ sudo nano /etc/systemd/system/floorlight.service
 
 ---
 
-#### 2️⃣ Inhalt einfügen
+#### 2️⃣ Inhalt einfügen 
 
 
 ```ini

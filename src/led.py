@@ -1,198 +1,172 @@
 #!/usr/bin/env python3
 import RPi.GPIO as GPIO
 import time, math
+import utils
 
-class LedSoftPwmGPIO:
+###################################################
+# LED PWM Control
+###################################################
+class PwmGPIO:
     """Class for controlling an LED via software PWM on two GPIO pins.
-    Uses dithering to achieve smooth brightness levels with gamma correction."""
-    def __init__(self, pin, f_pwm=2000, gamma=1.2):
+    Uses dithering to achieve smooth brightness levels."""
+    def __init__(self, pin, f_pwm=2000):
         self.pin = pin
         self.f_pwm = f_pwm           # 2 kHz is a good default
-        self.Tpwm  = 1.0 / f_pwm # PWM period in seconds
-        self.gamma = gamma
         # GPIO setup
-        GPIO.setwarnings(False)
+        GPIO.setwarnings(True)
         GPIO.setmode(GPIO.BCM)
-        # Pin setup
         GPIO.setup(self.pin, GPIO.OUT)
-        # PWM setup
         self.pwm = GPIO.PWM(self.pin, self.f_pwm)
+
+        # Initialize PWM with 0% duty cycle
         self.pwm.start(0.0)
 
-    def _apply_percent(self, pct):
-        """Set the duty cycle (0..100)."""
-        if pct < 0: pct = 0
-        if pct > 100: pct = 100
-        self.pwm.ChangeDutyCycle(pct)
+    # Methode to control the PWM signal (period and duty cycle)
+    def set_pwm(self, frequency, duty_cycle):
+        self.pwm.ChangeFrequency(frequency)
+        self.pwm.ChangeDutyCycle(duty_cycle)
 
-    def _set_level_dithered(self, level01, window=100):
-        """Return the PWM duty cycle for a given brightness level (0.0..1.0),"""
-        x = 0.0 if level01 < 0 else (1.0 if level01 > 1 else float(level01))
-        y = x ** self.gamma                     # Gamma correction
-        target_pct = 100.0 * y                  # 0..100
-        lo = int(math.floor(target_pct))
-        hi = min(100, lo + 1)
-        frac = target_pct - lo                  # Fraction for 'hi'
-        err = 0.0
-        hi_left = int(round(frac * window))     # how often 'hi' appears in this window
-
-        # Equal distribution of 'hi' and 'lo' over the window
-        for _ in range(window):
-            err += frac
-            if err >= 1.0 and hi_left > 0:
-                self._apply_percent(hi)
-                err -= 1.0
-                hi_left -= 1
-            else:
-                self._apply_percent(lo)
-            time.sleep(self.Tpwm)
-
-    def ramp(self, duration_s=5.0, start_level=0.0, end_level=1.0, updates=100, dither_window=10):
-        """
-        Soft ramp between two brightness levels over a given duration.
-        Uses a cosine S-curve for smooth transitions.
-        - duration_s: Total duration
-        - updates: Number of target values (averaged over 'dither_window' periods)
-        - dither_window: Periods per update (80 → ~80 ms at 1 kHz)
-        """
-        steps = max(1, int(updates))
-        for k in range(steps + 1):
-            u = k / steps
-            s = 0.5 - 0.5 * math.cos(math.pi * u)  # S-curve
-            level = start_level + (end_level - start_level) * s
-            self._set_level_dithered(level, window=dither_window)
-
-    def set_level(self, level01, settle_ms=80):
-        """Directly set brightness (briefly dithered to smooth 1% steps)."""
-        window = max(1, int(self.f_pwm * (settle_ms/1000.0)))
-        self._set_level_dithered(level01, window=window)
-
-    def off(self):
-        """Turn off the LED."""
-        self._apply_percent(0)
+    def stop(self):
+        """Stop PWM."""
+        self.pwm.stop()
 
     def close(self):
         """Cleanup GPIO and stop PWM."""
         try:
             # Stop PWM
-            self.off()
             self.pwm.stop()
         finally:
             # Cleanup GPIO
             GPIO.cleanup([self.pin])
 
+###################################################
+# LED Pair Control
+###################################################
+class LedPair:
+    """Class for controlling a pair of LEDs via software PWM on two GPIO pins.
+    Uses dithering to achieve smooth brightness levels."""
+    def __init__(self, pin_a=12, pin_b=13, T_ramp=2.0, duty_a=0, duty_b_factor=1/2, f_pwm=200):
+        # Public attributes
+        self.pin_a  = pin_a
+        self.pin_b  = pin_b
+        self.T_ramp = T_ramp         # Ramp time in seconds
+        self.duty_a = float(duty_a)  # Initial duty cycle for LED A (percent)
+        self.duty_b = self.duty_a * self._clamp_duty_b_factor(duty_b_factor) 
+        self.f_pwm  = f_pwm  # 200 Hz is a good default
 
-class LedPairSoftPwm:
-    """Control two LEDs (two GPIO pins) with coordinated soft PWM ramps.
+        # Private attributes (Constants)
+        self._N_duty = 101 # Number of duty cycle steps
+        self._T_duty = self.T_ramp / (2*self._N_duty)
+        self._N_x = 2
+        self._X_duty = self._N_x * self._N_duty
 
-    This class implements a dithered PWM approach similar to
-    LedSoftPwmGPIO but applies updates to both channels inside the
-    same timing loop so changes occur quasi-gleichzeitig.
-    """
-    def __init__(self, pin_a=12, pin_b=13, f_pwm=2000, gamma=1.2):
-        self.pin_a = pin_a
-        self.pin_b = pin_b
-        self.f_pwm = f_pwm
-        self.Tpwm = 1.0 / f_pwm
-        self.gamma = gamma
-
-        GPIO.setwarnings(False)
+        # GPIO setup
+        GPIO.setwarnings(True)
         GPIO.setmode(GPIO.BCM)
-
         GPIO.setup(self.pin_a, GPIO.OUT)
         GPIO.setup(self.pin_b, GPIO.OUT)
+        self.led_a = PwmGPIO(pin=self.pin_a, f_pwm=self.f_pwm*1000)
+        self.led_b = PwmGPIO(pin=self.pin_b, f_pwm=self.f_pwm*1000)
 
-        self.pwm_a = GPIO.PWM(self.pin_a, self.f_pwm)
-        self.pwm_b = GPIO.PWM(self.pin_b, self.f_pwm)
-        self.pwm_a.start(0.0)
-        self.pwm_b.start(0.0)
+        # Initialize PWM with the computed duty cycles
+        self.led_a.set_pwm(self.f_pwm, self.duty_a)
+        self.led_b.set_pwm(self.f_pwm, self.duty_b)
 
-    def _apply_percent_both(self, pct_a, pct_b):
-        """Apply immediate duty-cycle values (0..100) to both channels."""
-        if pct_a < 0: pct_a = 0
-        if pct_a > 100: pct_a = 100
-        if pct_b < 0: pct_b = 0
-        if pct_b > 100: pct_b = 100
-        self.pwm_a.ChangeDutyCycle(pct_a)
-        self.pwm_b.ChangeDutyCycle(pct_b)
+    def _clamp_duty_b_factor(self, duty_b_factor):
+        """Clamp duty_b_factor to be within [0.01, 1.0]."""
+        if duty_b_factor < 0.01:
+            return 0.01
+        elif duty_b_factor > 1.0:
+            return 1.0
+        return duty_b_factor
+    
+    def _get_n_duty(self, duty_start, duty_end):
+        """Calculate the number of duty cycle steps"""
+        if duty_start < duty_end:
+            return abs(int((duty_end - duty_start)+1))
+        else:
+            return abs(int((duty_start - duty_end)+1))
+    
+    def _get_x_duty(self, n_duty):
+        # Return ceil(2*_N_duty/n_duty)
+        x_duty_float = 2*self._N_duty/n_duty
+        x_duty = math.ceil(x_duty_float)
+        print("_N_duty: {}, n_duty: {}, x_duty_float: {}".format(self._N_duty, n_duty, x_duty_float))
+        print("Calculating x_duty = ceil(2*{}/{})) = ceil({}) = {}".format(self._N_duty, n_duty, x_duty_float, x_duty))
+        return x_duty
 
-    def _set_levels_dithered(self, level_a, level_b, window=100):
-        """Dither both channels together over `window` PWM periods.
+    def _get_vector_duty(self, duty_start, duty_end):
+        """Generate a duty cycle vector for ramping."""
+        # The vector is as follows (Matlab notation): (duty_start:duty_end). It
+        # creates first a vector with a range from duty_start to duty_end. It works
+        # for both increasing and decreasing ramps: duty_start > duty_end and vice versa.
+        if duty_start < duty_end:
+            vector_duty = list(range(int(duty_start), int(duty_end)+1))
+        else:
+            vector_duty = list(range(int(duty_start), int(duty_end)-1, -1))
+        return vector_duty
+    
+    def _get_vector_duty_resample(self, x_duty, vector_duty, duty_end):
+        """Resample the duty cycle vector to match x_duty steps."""
+        # Every element in vector_duty is repeated x_duty times
+        vector_duty_resampled = []
+        for duty in vector_duty:
+            vector_duty_resampled.extend([duty] * x_duty)
+        # Trim the resampled vector to not exceed self._X_duty
+        vector_duty_resampled_trimmed = vector_duty_resampled[:self._X_duty]
+        # Force the last element to be duty_end
+        vector_duty_resampled_trimmed[-1] = duty_end
+        
+        return vector_duty_resampled_trimmed
 
-        level_a/level_b are in 0.0..1.0 range.
-        """
-        def clamp01(x):
-            if x <= 0.0: return 0.0
-            if x >= 1.0: return 1.0
-            return float(x)
+    def ramp_a(self, duty_start, duty_end):
+        """Ramp both LEDs from duty_start to duty_end over T_ramp seconds."""
+        n_duty = self._get_n_duty(duty_start, duty_end)
+        x_duty = self._get_x_duty(n_duty)
+        vector_duty = self._get_vector_duty(duty_start, duty_end)
+        vector_duty_resampled = self._get_vector_duty_resample(x_duty, vector_duty, duty_end)
+        print("Ramping LED A from {}% to {}% over {} seconds: n_duty = {}, x_duty = {}".format(duty_start, duty_end, self.T_ramp, n_duty , x_duty))
+        print("N_duty: {}, n_duty: {}, X_duty: {}".format(self._N_duty, n_duty, x_duty))
+        print("Duty Vector (length: {}) for ramping LED A: {}".format(len(vector_duty), vector_duty))
+        print("Resampled Duty Vector (length: {}) for ramping LED A: {}".format(len(vector_duty_resampled),  vector_duty_resampled))
+        for duty in vector_duty_resampled:
+            self.led_a.set_pwm(self.f_pwm, duty)
+            #print("Setting LED A duty to {}%".format(duty))
+            time.sleep(self._T_duty)
 
-        a = clamp01(level_a)
-        b = clamp01(level_b)
-        ta = (a ** self.gamma) * 100.0
-        tb = (b ** self.gamma) * 100.0
+    def ramp_b(self, duty_start, duty_end):
+        """Ramp both LEDs from duty_start to duty_end over T_ramp seconds."""
+        n_duty = self._get_n_duty(duty_start, duty_end)
+        x_duty = self._get_x_duty(n_duty)
+        vector_duty = self._get_vector_duty(duty_start, duty_end)
+        vector_duty_resampled = self._get_vector_duty_resample(x_duty, vector_duty, duty_end)
+        print("Ramping LED B from {}% to {}% over {} seconds: n_duty = {}, x_duty = {}".format(duty_start, duty_end, self.T_ramp, n_duty , x_duty))
+        print("N_duty: {}, n_duty: {}, X_duty: {}".format(self._N_duty, n_duty, x_duty))
+        print("Duty Vector (length: {}) for ramping LED B: {}".format(len(vector_duty), vector_duty))
+        print("Resampled Duty Vector (length: {}) for ramping LED B: {}".format(len(vector_duty_resampled),  vector_duty_resampled))
+        for duty in vector_duty_resampled:
+            self.led_b.set_pwm(self.f_pwm, duty)
+            #print("Setting LED B duty to {}%".format(duty))
+            time.sleep(self._T_duty)
 
-        lo_a = int(math.floor(ta))
-        hi_a = min(100, lo_a + 1)
-        frac_a = ta - lo_a
-        hi_left_a = int(round(frac_a * window))
+    def set_pwm_a(self, duty_cycle_a):
+        self.led_a.set_pwm(self.f_pwm, duty_cycle_a)
 
-        lo_b = int(math.floor(tb))
-        hi_b = min(100, lo_b + 1)
-        frac_b = tb - lo_b
-        hi_left_b = int(round(frac_b * window))
-
-        err_a = 0.0
-        err_b = 0.0
-
-        for _ in range(max(1, int(window))):
-            err_a += frac_a
-            if err_a >= 1.0 and hi_left_a > 0:
-                out_a = hi_a
-                err_a -= 1.0
-                hi_left_a -= 1
-            else:
-                out_a = lo_a
-
-            err_b += frac_b
-            if err_b >= 1.0 and hi_left_b > 0:
-                out_b = hi_b
-                err_b -= 1.0
-                hi_left_b -= 1
-            else:
-                out_b = lo_b
-
-            # apply both outputs in the same loop iteration -> near-simultaneous
-            self._apply_percent_both(out_a, out_b)
-            time.sleep(self.Tpwm)
-
-    def ramp_both(self, duration_s=5.0,
-                  start_a=0.0, end_a=1.0,
-                  start_b=0.0, end_b=1.0,
-                  updates=100, dither_window=10):
-        """Ramp both channels concurrently using the same S-curve timing.
-
-        start_a/end_a and start_b/end_b are brightness in 0.0..1.0.
-        """
-        steps = max(1, int(updates))
-        for k in range(steps + 1):
-            u = k / steps
-            s = 0.5 - 0.5 * math.cos(math.pi * u)
-            level_a = start_a + (end_a - start_a) * s
-            level_b = start_b + (end_b - start_b) * s
-            self._set_levels_dithered(level_a, level_b, window=dither_window)
-
-    def set_levels(self, level_a, level_b, settle_ms=80):
-        """Immediately set both brightness levels (brief dither to smooth)."""
-        window = max(1, int(self.f_pwm * (settle_ms/1000.0)))
-        self._set_levels_dithered(level_a, level_b, window=window)
-
-    def off(self):
-        self._apply_percent_both(0, 0)
+    def set_pwm_b(self, duty_cycle_b):
+        self.led_b.set_pwm(self.f_pwm, duty_cycle_b)
 
     def close(self):
+        """Cleanup GPIO and stop PWM."""
         try:
-            self.off()
-            self.pwm_a.stop()
-            self.pwm_b.stop()
+            # Stop PWM
+            self.led_a.stop()
+            self.led_b.stop()
         finally:
+            # Cleanup GPIO
             GPIO.cleanup([self.pin_a, self.pin_b])
+
+    # Method for printing the info GPIO.RPI_INFO
+    def print_info(self):
+        print("LED Pin A:", self.pin_a)
+        print("LED Pin B:", self.pin_b)
+        print("PWM Frequency:", self.f_pwm)

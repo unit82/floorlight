@@ -1,0 +1,5 @@
+pwm:
+  frequency: 200 # Frequency in Hz
+
+led:
+  T_ramp: 0.5 # Ramp time in seconds
