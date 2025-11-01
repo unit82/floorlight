@@ -52,6 +52,7 @@ class LedPair:
         self.T_ramp = T_ramp         # Ramp time in seconds
         self.duty_a = float(duty_a)  # Initial duty cycle for LED A (percent)
         self.duty_b = self.duty_a * self._clamp_duty_b_factor(duty_b_factor) 
+        self.duty_b_factor = self._clamp_duty_b_factor(duty_b_factor)
         self.f_pwm  = f_pwm  # 200 Hz is a good default
 
         # Private attributes (Constants)
@@ -147,6 +148,32 @@ class LedPair:
         for duty in vector_duty_resampled:
             self.led_b.set_pwm(self.f_pwm, duty)
             #print("Setting LED B duty to {}%".format(duty))
+            time.sleep(self._T_duty)
+
+    def ramp_ab(self, duty_start, duty_end):
+        """Ramp both LEDs from duty_start to duty_end over T_ramp seconds."""
+        duty_start_a = duty_start
+        duty_end_a   = duty_end
+        duty_start_b = duty_start * self.duty_b_factor
+        duty_end_b   = duty_end * self.duty_b_factor
+        n_duty_a = self._get_n_duty(duty_start_a, duty_end_a)
+        n_duty_b = self._get_n_duty(duty_start_b, duty_end_b)
+        x_duty_a = self._get_x_duty(n_duty_a)
+        x_duty_b = self._get_x_duty(n_duty_b)
+        vector_duty_a = self._get_vector_duty(duty_start_a, duty_end_a)
+        vector_duty_b = self._get_vector_duty(duty_start_b, duty_end_b)
+        vector_duty_resampled_a = self._get_vector_duty_resample(x_duty_a, vector_duty_a, duty_end_a)
+        vector_duty_resampled_b = self._get_vector_duty_resample(x_duty_b, vector_duty_b, duty_end_b)
+        print("Ramping LED A and B from {}% to {}% over {} seconds: n_duty = {}, x_duty = {}".format(duty_start, duty_end, self.T_ramp, n_duty_a , x_duty_a))
+        print("N_duty: {}, n_duty: {}, X_duty: {}".format(self._N_duty, n_duty_a, x_duty_a))
+        print("Duty Vector (length: {}) for ramping LED A and B: {}".format(len(vector_duty_a), vector_duty_a))
+        print("Resampled Duty Vector (length: {}) for ramping LED A and B: {}".format(len(vector_duty_resampled_a),  vector_duty_resampled_a))
+        for i in range(len(vector_duty_resampled_a)):
+            duty_a = vector_duty_resampled_a[i]
+            duty_b = vector_duty_resampled_b[i]
+            self.led_a.set_pwm(self.f_pwm, duty_a)
+            self.led_b.set_pwm(self.f_pwm, duty_b)
+            #print("Setting LED A duty to {}% and LED B duty to {}%".format(duty_a, duty_b))
             time.sleep(self._T_duty)
 
     def set_pwm_a(self, duty_cycle_a):
