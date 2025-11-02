@@ -1,9 +1,20 @@
-"""Utility helpers for the floorlight project.
+''' 
+Project:    Pi Floor Light
 
-Currently contains a small helper to load runtime configuration from
-the project's `config/settings.json` file. The helper returns a dict
-or an empty dict on error.
-"""
+File:       src/utils.py
+
+Title:      Utility Functions for Raspberry Pi
+
+Abstract:   This module provides utility functions for the Pi Floor Light project.
+            It includes functions for loading configuration files and other helper
+            functions that may be useful throughout the project.
+
+Author:     Dr. Oliver Opalko
+
+Email:      oliver.opalko@gmail.com
+
+'''
+#!/usr/bin/env python3
 from pathlib import Path
 import yaml
 

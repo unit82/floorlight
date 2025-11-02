@@ -1,8 +1,26 @@
+''' 
+Project:    Pi Floor Light
+
+File:       src/main.py
+
+Title:      Main Module for Pi Floor Light
+
+Abstract:   This module serves as the main entry point for the Pi Floor Light project.
+            It initializes the LED control using PWM signals on GPIO pins connected
+            to IRLZ44NPBF MOSFETs controlling an LED strip. The module utilizes
+            the RPi.GPIO library for GPIO management and PWM signal generation.
+
+Author:     Dr. Oliver Opalko
+
+Email:      oliver.opalko@gmail.com
+
+'''
+
 #!/usr/bin/env python3
 import RPi.GPIO as GPIO
 import time, math
 import utils
-from led import PwmGPIO, LedPair
+from led import LedPair
 
 
 def main():
@@ -15,7 +33,7 @@ def main():
     dither_window = 20
     duration_ramp = 1.0
     duty_start = 0
-    duty_end = 20
+    duty_end = 1
     # Load runtime configuration from config/settings.json (project root)
     duty_cycle = 5  # Duty cycle in percent
     frequency  = config["pwm"]["frequency"]   # Frequency in Hz
