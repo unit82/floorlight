@@ -24,7 +24,7 @@ from led import LedPair
 
 
 def main():
-
+    """Main function to initialize and control the LED strip via PWM."""
     config = utils.load_config("./config/static_config.yaml")
     start_level = 0.001
     end_level = 1

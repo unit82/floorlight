@@ -57,3 +57,4 @@ class PwmGPIO:
         finally:
             # Cleanup GPIO
             GPIO.cleanup([self.pin])
+            
