@@ -61,42 +61,29 @@ def main():
     frequency  = config["pwm"]["frequency"]   # Frequency in Hz
     # GPIO setup to BCM mode (explanation: https://pinout.xyz/pinout/bcm)
     GPIO.setmode(GPIO.BCM)
-    led = LedPair(
-        pin_a=12, 
-        pin_b=13, 
-        T_ramp=config["led"]["T_ramp"], 
-        duty_a=0, 
-        duty_b_factor=1/4, 
-        f_pwm=frequency)
-    ms = PIRMotionSensor(pin=16)
+    # led = LedPair(
+    #     pin_a=12, 
+    #     pin_b=13, 
+    #     T_ramp=config["led"]["T_ramp"], 
+    #     duty_a=0, 
+    #     duty_b_factor=1/4, 
+    #     f_pwm=frequency)
+    ms = PIRMotionSensor(pin=16, 
+            led_pin_a=12, 
+            led_pin_b=13, 
+            led_T_ramp=config["led"]["T_ramp"], 
+            led_duty_a=0, 
+            led_duty_b_factor=1/4, 
+            led_f_pwm=frequency)
     
     try:
+        print("Starting motion sensor loop. Press Ctrl-C to exit.")
         ms.run_loop()
-        #led.print_info()
-        print("Setting PWM with frequency {} Hz and duty cycle {}%".format(frequency, duty_cycle))
-        #led.set_pwm_a(duty_cycle_a=100)
-        led.ramp_ab(duty_start=duty_start, duty_end=duty_end)
-        time.sleep(2)
-        led.ramp_ab(duty_start=duty_end, duty_end=duty_start)
-        time.sleep(2)
-        # led.ramp_a(duty_start=duty_start, duty_end=duty_end)
-        # time.sleep(2)
-        # led.ramp_a(duty_start=duty_end, duty_end=duty_start)
-        # time.sleep(1)
-        # # led.ramp_b(duty_start=duty_start, duty_end=duty_end)
-        # led.ramp_b(duty_start=duty_start, duty_end=duty_end)
-        # time.sleep(2)
-        # led.ramp_b(duty_start=duty_end, duty_end=duty_start)
-        # time.sleep(1)
-
-
-
-        #led.close()
-        #print("LED closed.")
+        print("Motion sensor loop ended.")
     finally:
         # Cleanup
-        led.close()
-        print("LED FINALLY closed.")
+        ms.close()
+        print("Motion sensor closed.")
 
 if __name__ == "__main__":
     main()
