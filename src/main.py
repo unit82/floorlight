@@ -21,9 +21,31 @@ import RPi.GPIO as GPIO
 import time, math
 import utils
 from led import LedPair
-
+from motion import PIRMotionSensor
+# from gpiozero import MotionSensor
 
 def main():
+
+    # # Declaration of GPIO16 as an input for the PIR sensor
+    # pir = MotionSensor(16)
+    # # Intermediate variables
+    # active = False
+    # try:
+    #     while True:
+    #         # Monitoring changes from the PIR sensor
+    #         if pir.motion_detected and not active:
+    #             print("Motion detected")
+    #             active = True
+    #         elif not pir.motion_detected and active:
+    #             print("No movement")
+    #             active = False
+    #         time.sleep(0.1)
+    # # Termination condition
+    # except KeyboardInterrupt:
+    #     print("Program interrupted by user.")
+    # finally:
+    #     pir.close()
+
     """Main function to initialize and control the LED strip via PWM."""
     config = utils.load_config("./config/static_config.yaml")
     start_level = 0.001
@@ -46,8 +68,10 @@ def main():
         duty_a=0, 
         duty_b_factor=1/4, 
         f_pwm=frequency)
+    ms = PIRMotionSensor(pin=16)
     
     try:
+        ms.run_loop()
         #led.print_info()
         print("Setting PWM with frequency {} Hz and duty cycle {}%".format(frequency, duty_cycle))
         #led.set_pwm_a(duty_cycle_a=100)
