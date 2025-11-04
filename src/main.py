@@ -33,7 +33,7 @@ def main():
     dither_window = 20
     duration_ramp = 1.0
     duty_start = 0
-    duty_end = 1
+    duty_end = 10
     # Load runtime configuration from config/settings.json (project root)
     duty_cycle = 5  # Duty cycle in percent
     frequency  = config["pwm"]["frequency"]   # Frequency in Hz
@@ -54,7 +54,7 @@ def main():
         led.ramp_ab(duty_start=duty_start, duty_end=duty_end)
         time.sleep(2)
         led.ramp_ab(duty_start=duty_end, duty_end=duty_start)
-        time.sleep(1)
+        time.sleep(2)
         # led.ramp_a(duty_start=duty_start, duty_end=duty_end)
         # time.sleep(2)
         # led.ramp_a(duty_start=duty_end, duty_end=duty_start)

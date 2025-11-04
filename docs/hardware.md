@@ -27,3 +27,10 @@ Wichtige Hinweise zur sicheren und funktionierenden Verkabelung der Bodenbeleuch
 
 6) Hinweis für adressierbare LEDs (WS2812 / Neopixel)
 - WS2812 benötigen exakt getaktete Daten; verwende hierfür die passende Bibliothek (rpi_ws281x, adafruit_neopixel) — diese sind nicht kompatibel mit RPi.GPIO PWM.
+
+7) Hardware-Lliste
+- Raspberry Pi Zero 2 WH 1GHZ 512MB WLAN
+- TRANSISTOR HEXFET IRLZ44NPBF
+- GY-302 (BH1750) Lichtsensormodul 
+- SEN-HC-SR501 Bewegungssensormodul
+- LED-Streifen 5025 3000K-6000K

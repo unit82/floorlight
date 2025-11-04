@@ -1,2 +1,7 @@
 i2c-tools
 python3-rpi.gpio
+# For Motion Sensor BH1750
+python-smbus
+python3-smbus
+python-dev 
+python3-dev 
