@@ -96,12 +96,13 @@ class LedPair:
         else:
             return abs(int((duty_start - duty_end)+1))
     
-    def _get_x_duty(self, n_duty):
+    def _get_x_duty(self, n_duty, b_print=True):
         # Return ceil(2*_N_duty/n_duty)
         x_duty_float = 2*self._N_duty/n_duty
         x_duty = math.ceil(x_duty_float)
-        print("_N_duty: {}, n_duty: {}, x_duty_float: {}".format(self._N_duty, n_duty, x_duty_float))
-        print("Calculating x_duty = ceil(2*{}/{})) = ceil({}) = {}".format(self._N_duty, n_duty, x_duty_float, x_duty))
+        if b_print:
+            print("_N_duty: {}, n_duty: {}, x_duty_float: {}".format(self._N_duty, n_duty, x_duty_float))
+            print("Calculating x_duty = ceil(2*{}/{})) = ceil({}) = {}".format(self._N_duty, n_duty, x_duty_float, x_duty))
         return x_duty
 
     def _get_vector_duty(self, duty_start, duty_end):
@@ -128,23 +129,24 @@ class LedPair:
         # Return the resampled vector
         return vector_duty_resampled_trimmed
     
-    def _get_vector_duty_resample_ab(self, duty_start, duty_end):
+    def _get_vector_duty_resample_ab(self, duty_start, duty_end, b_print=True):
         duty_start_a = duty_start
         duty_end_a   = duty_end
         duty_start_b = duty_start * self.duty_b_factor
         duty_end_b   = duty_end * self.duty_b_factor
         n_duty_a = self._get_n_duty(duty_start_a, duty_end_a)
         n_duty_b = self._get_n_duty(duty_start_b, duty_end_b)
-        x_duty_a = self._get_x_duty(n_duty_a)
-        x_duty_b = self._get_x_duty(n_duty_b)
+        x_duty_a = self._get_x_duty(n_duty_a, b_print=b_print)
+        x_duty_b = self._get_x_duty(n_duty_b, b_print=b_print)
         vector_duty_a = self._get_vector_duty(duty_start_a, duty_end_a)
         vector_duty_b = self._get_vector_duty(duty_start_b, duty_end_b)
         vector_duty_resampled_a = self._get_vector_duty_resample(x_duty_a, vector_duty_a, duty_end_a)
         vector_duty_resampled_b = self._get_vector_duty_resample(x_duty_b, vector_duty_b, duty_end_b)
-        print("Ramping LED A and B from {}% to {}% over {} seconds: n_duty = {}, x_duty = {}".format(duty_start, duty_end, self.T_ramp, n_duty_a , x_duty_a))
-        print("N_duty: {}, n_duty: {}, X_duty: {}".format(self._N_duty, n_duty_a, x_duty_a))
-        print("Duty Vector (length: {}) for ramping LED A and B: {}".format(len(vector_duty_a), vector_duty_a))
-        print("Resampled Duty Vector (length: {}) for ramping LED A and B: {}".format(len(vector_duty_resampled_a),  vector_duty_resampled_a))
+        if b_print:
+            print("Ramping LED A and B from {}% to {}% over {} seconds: n_duty = {}, x_duty = {}".format(duty_start, duty_end, self.T_ramp, n_duty_a , x_duty_a))
+            print("N_duty: {}, n_duty: {}, X_duty: {}".format(self._N_duty, n_duty_a, x_duty_a))
+            print("Duty Vector (length: {}) for ramping LED A and B: {}".format(len(vector_duty_a), vector_duty_a))
+            print("Resampled Duty Vector (length: {}) for ramping LED A and B: {}".format(len(vector_duty_resampled_a),  vector_duty_resampled_a))
         return vector_duty_resampled_a, vector_duty_resampled_b
 
     #########################################################
@@ -182,9 +184,9 @@ class LedPair:
             time.sleep(self._T_duty)
     
 
-    def ramp_ab(self, duty_start, duty_end):
+    def ramp_ab(self, duty_start, duty_end, b_print=True):
         """Ramp both LEDs from duty_start to duty_end over T_ramp seconds."""
-        vector_duty_resampled_a, vector_duty_resampled_b = self._get_vector_duty_resample_ab(duty_start, duty_end)
+        vector_duty_resampled_a, vector_duty_resampled_b = self._get_vector_duty_resample_ab(duty_start, duty_end, b_print=b_print)
         for i in range(len(vector_duty_resampled_a)):
             duty_a = vector_duty_resampled_a[i]
             duty_b = vector_duty_resampled_b[i]

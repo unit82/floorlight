@@ -7,6 +7,9 @@ interruptible with Ctrl-C (KeyboardInterrupt) and performs cleanup.
 """
 from __future__ import annotations
 
+from math import e
+import math
+from socket import timeout
 import time
 from gpiozero import MotionSensor
 from led import LedPair
@@ -48,7 +51,21 @@ class PIRMotionSensor:
         except Exception as e:
             print(f"Error initializing MotionSensor on pin {pin}: {e}")
             raise
-    
+
+    #########################################################
+    # Private Helper Methods
+    #########################################################
+
+    def _wait_for_settled_pir(self) -> None:
+        # Loop until PIR output is 0
+        while self.pir.motion_detected:
+            time.sleep(0.1)
+
+
+    #########################################################
+    # Public Methods
+    #########################################################
+
     def run_loop(self) -> None:
         """Run a blocking loop that waits for motion and prints on detection.
 
@@ -56,23 +73,39 @@ class PIRMotionSensor:
         Ctrl-C. It uses GPIO.wait_for_edge which blocks efficiently.
         """
         # Intermediate variables
-        active     = False
         duty_start = 0
-        duty_end   = 50
+        duty_end   = 40
+        timeout    = 4.0
+        wait_for_motion_state = False
+        b_print_led = False
+        b_led_is_on = False
         try:
             while True:
                 # Monitoring changes from the PIR sensor
-                if self.pir.motion_detected and not active:
+                if self.pir.motion_detected:
                     print("Motion detected")
-                    active = True
-                    # use the instance's LedPair controller
-                    self.led.ramp_ab(duty_start=duty_start, duty_end=duty_end)
-                    time.sleep(5)
-                elif not self.pir.motion_detected and active:
-                    print("No movement")
-                    time.sleep(2)
-                    self.led.ramp_ab(duty_start=duty_end, duty_end=duty_start)
-                    active = False
+                    if b_led_is_on == False:
+                        # Ramp up the LED strip
+                        self.led.ramp_ab(duty_start=duty_start, duty_end=duty_end, b_print=b_print_led)
+                        b_led_is_on = True
+                    time.sleep(math.ceil(timeout/2))
+                elif not self.pir.motion_detected :
+                    # Wait for motion with timeout
+                    wait_for_motion_state = self.pir.wait_for_motion(timeout=timeout*2)
+                    # If wait_for_motion_state is True, leave this if-block
+                    if wait_for_motion_state:
+                        # A motion event occurred
+                        print("wait_for_motion_state = True")
+                        continue
+                    else:
+                        # No motion event within timeout
+                        print("wait_for_motion_state = False")
+
+                    if b_led_is_on and not wait_for_motion_state:
+                        print("Turning off LED due to no motion.")
+                        # Ramp down the LED strip
+                        self.led.ramp_ab(duty_start=duty_end, duty_end=duty_start, b_print=b_print_led)
+                        b_led_is_on = False
 
                 time.sleep(0.1)
 
@@ -81,6 +114,7 @@ class PIRMotionSensor:
             print("Program interrupted by user.")
         finally:
             self.close()
+
 
     def close(self) -> None:
         """Cleanup only the pin used by this sensor.
@@ -94,3 +128,18 @@ class PIRMotionSensor:
         except Exception:
             # best-effort cleanup; ignore errors
             pass
+
+    #########################################################
+    # Debug related Methods
+    #########################################################
+
+    def debug_print_motion_detected(self) -> None:
+        """Print a message indicating motion was detected."""
+        try:
+            while True:
+                self.pir.wait_for_motion()
+                print(f"Motion detected at {time.strftime('%Y-%m-%d %H:%M:%S')}")
+                self.pir.wait_for_no_motion()
+                print(f"No motion at       {time.strftime('%Y-%m-%d %H:%M:%S')}")
+        except KeyboardInterrupt:
+            print("Program interrupted by user.")

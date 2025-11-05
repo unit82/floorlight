@@ -61,13 +61,6 @@ def main():
     frequency  = config["pwm"]["frequency"]   # Frequency in Hz
     # GPIO setup to BCM mode (explanation: https://pinout.xyz/pinout/bcm)
     GPIO.setmode(GPIO.BCM)
-    # led = LedPair(
-    #     pin_a=12, 
-    #     pin_b=13, 
-    #     T_ramp=config["led"]["T_ramp"], 
-    #     duty_a=0, 
-    #     duty_b_factor=1/4, 
-    #     f_pwm=frequency)
     ms = PIRMotionSensor(pin=16, 
             led_pin_a=12, 
             led_pin_b=13, 
@@ -78,6 +71,7 @@ def main():
     
     try:
         print("Starting motion sensor loop. Press Ctrl-C to exit.")
+        # ms.debug_print_motion_detected()
         ms.run_loop()
         print("Motion sensor loop ended.")
     finally:
