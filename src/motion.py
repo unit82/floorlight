@@ -8,12 +8,13 @@ interruptible with Ctrl-C (KeyboardInterrupt) and performs cleanup.
 from __future__ import annotations
 
 from math import e
-import math
 from socket import timeout
-import time
 from gpiozero import MotionSensor
 from led import LedPair
-
+import math
+import smbus
+import bh1750
+import time
 
 class PIRMotionSensor:
     """Represent a PIR/motion sensor connected to a GPIO input.
@@ -28,8 +29,10 @@ class PIRMotionSensor:
     close() to cleanup the GPIO for that pin.
     """
 
-    def __init__(self, pin: int = 16, led_pin_a: int = 12, led_pin_b: int = 13, led_T_ramp: float = 5.0, led_duty_a: float = 0.0, led_duty_b_factor: float = 0.25, led_f_pwm: float = 1000.0):
+    def __init__(self, config: dict, pin: int = 16, led_pin_a: int = 12, led_pin_b: int = 13, led_duty_a: float = 0.0, led_duty_b_factor: float = 0.25):
+        # GPIO setup to BCM mode (explanation: https://pinout.xyz/pinout/bcm)
         try:
+            self.config = config
             # Motion sensor related parameters
             self.pin = int(pin)
             self.pir = MotionSensor(self.pin)
@@ -37,10 +40,10 @@ class PIRMotionSensor:
             # LED related parameters
             self.led_pin_a         = led_pin_a
             self.led_pin_b         = led_pin_b
-            self.led_T_ramp        = led_T_ramp
+            self.led_T_ramp        = config["led"]["T_ramp"]
             self.led_duty_a        = led_duty_a
             self.led_duty_b_factor = led_duty_b_factor
-            self.led_f_pwm         = led_f_pwm
+            self.led_f_pwm         = config["pwm"]["frequency"]
             self.led = LedPair(
                 pin_a        =self.led_pin_a, 
                 pin_b        =self.led_pin_b, 
@@ -48,6 +51,7 @@ class PIRMotionSensor:
                 duty_a       =self.led_duty_a, 
                 duty_b_factor=self.led_duty_b_factor, 
                 f_pwm        =self.led_f_pwm)
+            self.light_sensor = bh1750.BH1750()
         except Exception as e:
             print(f"Error initializing MotionSensor on pin {pin}: {e}")
             raise
@@ -66,24 +70,19 @@ class PIRMotionSensor:
     # Public Methods
     #########################################################
 
-    def run_loop(self) -> None:
+    def run_loop(self, duty_start=0, duty_end=40, timeout=4.0, wait_for_motion_state=False, b_print_led=False, b_led_is_on=False) -> None:
         """Run a blocking loop that waits for motion and prints on detection.
 
         This method handles KeyboardInterrupt to allow clean exit via
         Ctrl-C. It uses GPIO.wait_for_edge which blocks efficiently.
         """
-        # Intermediate variables
-        duty_start = 0
-        duty_end   = 40
-        timeout    = 4.0
-        wait_for_motion_state = False
-        b_print_led = False
-        b_led_is_on = False
         try:
             while True:
                 # Monitoring changes from the PIR sensor
                 if self.pir.motion_detected:
-                    print("Motion detected")
+                    # Measure light level
+                    lux = self.light_sensor.read_lux()
+                    print("Motion detected at lux value:", lux)
                     if b_led_is_on == False:
                         # Ramp up the LED strip
                         self.led.ramp_ab(duty_start=duty_start, duty_end=duty_end, b_print=b_print_led)
@@ -106,9 +105,7 @@ class PIRMotionSensor:
                         # Ramp down the LED strip
                         self.led.ramp_ab(duty_start=duty_end, duty_end=duty_start, b_print=b_print_led)
                         b_led_is_on = False
-
                 time.sleep(0.1)
-
         # Termination condition
         except KeyboardInterrupt:
             print("Program interrupted by user.")
@@ -125,6 +122,8 @@ class PIRMotionSensor:
         """
         try:
             self.pir.close()
+            self.led.close()
+            self.light_sensor.power_down()
         except Exception:
             # best-effort cleanup; ignore errors
             pass

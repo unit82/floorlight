@@ -1,3 +1,6 @@
+# Static configuration file for Floorlight project.
+# Adjust the parameters below as needed.
+
 pwm:
   frequency: 200 # Frequency in Hz
 

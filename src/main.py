@@ -26,26 +26,6 @@ from motion import PIRMotionSensor
 
 def main():
 
-    # # Declaration of GPIO16 as an input for the PIR sensor
-    # pir = MotionSensor(16)
-    # # Intermediate variables
-    # active = False
-    # try:
-    #     while True:
-    #         # Monitoring changes from the PIR sensor
-    #         if pir.motion_detected and not active:
-    #             print("Motion detected")
-    #             active = True
-    #         elif not pir.motion_detected and active:
-    #             print("No movement")
-    #             active = False
-    #         time.sleep(0.1)
-    # # Termination condition
-    # except KeyboardInterrupt:
-    #     print("Program interrupted by user.")
-    # finally:
-    #     pir.close()
-
     """Main function to initialize and control the LED strip via PWM."""
     config = utils.load_config("./config/static_config.yaml")
     start_level = 0.001
@@ -59,15 +39,14 @@ def main():
     # Load runtime configuration from config/settings.json (project root)
     duty_cycle = 5  # Duty cycle in percent
     frequency  = config["pwm"]["frequency"]   # Frequency in Hz
-    # GPIO setup to BCM mode (explanation: https://pinout.xyz/pinout/bcm)
-    GPIO.setmode(GPIO.BCM)
-    ms = PIRMotionSensor(pin=16, 
+    
+    ms = PIRMotionSensor(
+            config=config,
+            pin=16, 
             led_pin_a=12, 
             led_pin_b=13, 
-            led_T_ramp=config["led"]["T_ramp"], 
             led_duty_a=0, 
-            led_duty_b_factor=1/4, 
-            led_f_pwm=frequency)
+            led_duty_b_factor=1/4)
     
     try:
         print("Starting motion sensor loop. Press Ctrl-C to exit.")
