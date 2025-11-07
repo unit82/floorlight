@@ -16,7 +16,7 @@ import smbus
 import bh1750
 import time
 
-class PIRMotionSensor:
+class LEDControl:
     """Represent a PIR/motion sensor connected to a GPIO input.
 
     Usage:

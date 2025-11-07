@@ -20,8 +20,8 @@ Email:      oliver.opalko@gmail.com
 import RPi.GPIO as GPIO
 import time, math
 import utils
+import ledcontrol
 from led import LedPair
-from motion import PIRMotionSensor
 # from gpiozero import MotionSensor
 
 def main():
@@ -39,8 +39,8 @@ def main():
     # Load runtime configuration from config/settings.json (project root)
     duty_cycle = 5  # Duty cycle in percent
     frequency  = config["pwm"]["frequency"]   # Frequency in Hz
-    
-    ms = PIRMotionSensor(
+
+    ms = ledcontrol.LEDControl(
             config=config,
             pin=16, 
             led_pin_a=12, 
