@@ -40,14 +40,14 @@ class LEDControl:
             # LED related parameters
             self.led_pin_a         = led_pin_a
             self.led_pin_b         = led_pin_b
-            self.led_T_ramp        = config["led"]["T_ramp"]
+            self.led_T_ramp_max    = config["led"]["T_ramp_max"]
             self.led_duty_a        = led_duty_a
             self.led_duty_b_factor = led_duty_b_factor
             self.led_f_pwm         = config["pwm"]["frequency"]
             self.led = LedPair(
                 pin_a        =self.led_pin_a, 
                 pin_b        =self.led_pin_b, 
-                T_ramp       =self.led_T_ramp, 
+                T_ramp_max   =self.led_T_ramp_max, 
                 duty_a       =self.led_duty_a, 
                 duty_b_factor=self.led_duty_b_factor, 
                 f_pwm        =self.led_f_pwm)
@@ -70,8 +70,18 @@ class LEDControl:
     # Public Methods
     #########################################################
 
-    def run_loop(self, duty_start=0, duty_end=40, timeout=4.0, wait_for_motion_state=False, b_print_led=False, b_led_is_on=False) -> None:
-        """Run a blocking loop that waits for motion and prints on detection.
+    def light_on_motion(self, duty_start=0, duty_end=40, timeout=5.0, b_print_led=True) -> None:
+        """
+        Turn on the LED strip on motion detection, then turn off after timeout.
+        """
+        self.pir.wait_for_motion(timeout=timeout)
+        self.led.ramp_ab(duty_start=duty_start, duty_end=duty_end, b_print=b_print_led, b_T_duty_is_dynamic=True)
+        time.sleep(2)
+        self.led.ramp_ab(duty_start=duty_end, duty_end=duty_start, b_print=b_print_led, b_T_duty_is_dynamic=True)
+
+    def light_on_motion_loop(self, duty_start=0, duty_end=40, timeout=4.0, wait_for_motion_state=False, b_print_led=False, b_led_is_on=False) -> None:
+        """
+        Run a blocking loop that waits for motion and prints on detection.
 
         This method handles KeyboardInterrupt to allow clean exit via
         Ctrl-C. It uses GPIO.wait_for_edge which blocks efficiently.

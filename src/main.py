@@ -35,12 +35,12 @@ def main():
     dither_window = 20
     duration_ramp = 1.0
     duty_start = 0
-    duty_end = 10
+    duty_end = 25
     # Load runtime configuration from config/settings.json (project root)
     duty_cycle = 5  # Duty cycle in percent
     frequency  = config["pwm"]["frequency"]   # Frequency in Hz
 
-    ms = ledcontrol.LEDControl(
+    led_ctrl = ledcontrol.LEDControl(
             config=config,
             pin=16, 
             led_pin_a=12, 
@@ -49,14 +49,14 @@ def main():
             led_duty_b_factor=1/4)
     
     try:
-        print("Starting motion sensor loop. Press Ctrl-C to exit.")
-        # ms.debug_print_motion_detected()
-        ms.run_loop()
-        print("Motion sensor loop ended.")
+        print("Starting LED control loop. Press Ctrl-C to exit.") 
+        # led_ctrl.light_on_motion(duty_end=duty_end)
+        led_ctrl.light_on_motion_loop()
+        print("LED control loop ended.")
     finally:
         # Cleanup
-        ms.close()
-        print("Motion sensor closed.")
+        led_ctrl.close()
+        print("LED control closed.")
 
 if __name__ == "__main__":
     main()

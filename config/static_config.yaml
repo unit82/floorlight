@@ -5,4 +5,4 @@ pwm:
   frequency: 200 # Frequency in Hz
 
 led:
-  T_ramp: 0.5 # Ramp time in seconds
+  T_ramp_max: 2 # Ramp time in seconds, when using the full range of duty cycle (0-100%)
