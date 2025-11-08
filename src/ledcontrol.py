@@ -70,16 +70,40 @@ class LEDControl:
     # Public Methods
     #########################################################
 
-    def light_on_motion(self, duty_start=0, duty_end=40, timeout=5.0, b_print_led=True) -> None:
+    def light_on_motion(self, duty_start=0, duty_end=40, timeout=4.0, b_led_is_on=False, b_print_led=True) -> None:
         """
         Turn on the LED strip on motion detection, then turn off after timeout.
         """
-        self.pir.wait_for_motion(timeout=timeout)
-        self.led.ramp_ab(duty_start=duty_start, duty_end=duty_end, b_print=b_print_led, b_T_duty_is_dynamic=True)
-        time.sleep(2)
-        self.led.ramp_ab(duty_start=duty_end, duty_end=duty_start, b_print=b_print_led, b_T_duty_is_dynamic=True)
+        if self.pir.motion_detected:
+            # Measure light level
+            lux = self.light_sensor.read_lux()
+            print("Motion detected at lux value: {:.4f}".format(lux))
+            if b_led_is_on == False:
+                # Ramp up the LED strip
+                self.led.ramp_ab( 
+                    duty_start=duty_start, duty_end=duty_end, b_print=b_print_led)
+                b_led_is_on = True
+            time.sleep(math.ceil(timeout/2))
+            return b_led_is_on
+        elif not self.pir.motion_detected :
+            wait_for_motion_state = self.pir.wait_for_motion(timeout=timeout*2)
+            if wait_for_motion_state:
+                # A motion event occurred
+                print("wait_for_motion_state = True")
+                return b_led_is_on
+            else:
+                # No motion event within timeout
+                print("wait_for_motion_state = False")
 
-    def light_on_motion_loop(self, duty_start=0, duty_end=40, timeout=4.0, wait_for_motion_state=False, b_print_led=False, b_led_is_on=False) -> None:
+            if b_led_is_on and not wait_for_motion_state:
+                print("Turning off LED due to no motion.")
+                # Ramp down the LED strip
+                self.led.ramp_ab(
+                    duty_start=duty_end, duty_end=duty_start, b_print=b_print_led)
+                b_led_is_on = False
+            return b_led_is_on
+
+    def light_on_motion_loop(self, duty_start=0, duty_end=40, timeout=4.0, b_print_led=False, b_led_is_on=False) -> None:
         """
         Run a blocking loop that waits for motion and prints on detection.
 
@@ -88,35 +112,9 @@ class LEDControl:
         """
         try:
             while True:
-                # Monitoring changes from the PIR sensor
-                if self.pir.motion_detected:
-                    # Measure light level
-                    lux = self.light_sensor.read_lux()
-                    print("Motion detected at lux value:", lux)
-                    if b_led_is_on == False:
-                        # Ramp up the LED strip
-                        self.led.ramp_ab(duty_start=duty_start, duty_end=duty_end, b_print=b_print_led)
-                        b_led_is_on = True
-                    time.sleep(math.ceil(timeout/2))
-                elif not self.pir.motion_detected :
-                    # Wait for motion with timeout
-                    wait_for_motion_state = self.pir.wait_for_motion(timeout=timeout*2)
-                    # If wait_for_motion_state is True, leave this if-block
-                    if wait_for_motion_state:
-                        # A motion event occurred
-                        print("wait_for_motion_state = True")
-                        continue
-                    else:
-                        # No motion event within timeout
-                        print("wait_for_motion_state = False")
-
-                    if b_led_is_on and not wait_for_motion_state:
-                        print("Turning off LED due to no motion.")
-                        # Ramp down the LED strip
-                        self.led.ramp_ab(duty_start=duty_end, duty_end=duty_start, b_print=b_print_led)
-                        b_led_is_on = False
+                b_led_is_on = self.light_on_motion( 
+                    duty_start, duty_end, timeout, b_led_is_on=b_led_is_on, b_print_led=b_print_led)
                 time.sleep(0.1)
-        # Termination condition
         except KeyboardInterrupt:
             print("Program interrupted by user.")
         finally:
