@@ -1,20 +1,17 @@
 #!/usr/bin/env python3
-"""Simple motion sensor helper for the floorlight project.
-
-Provides MotionSensor which waits for a rising edge on a GPIO input
-and prints a message when motion is detected. The main loop is
-interruptible with Ctrl-C (KeyboardInterrupt) and performs cleanup.
+"""
+LED control for the floorlight project. 
+Provides LEDControl which manages LED brightness based on motion
+detection and ambient light levels. 
 """
 from __future__ import annotations
 
-from math import e
-from socket import timeout
-from gpiozero import MotionSensor
-from led import LedPair
 import math
-import smbus
-import bh1750
 import time
+# from socket import timeout
+from gpiozero import MotionSensor
+from led_pigpio import LedPair
+from bh1750 import BH1750
 
 class LEDControl:
     """Represent a PIR/motion sensor connected to a GPIO input.
@@ -47,11 +44,12 @@ class LEDControl:
             self.led = LedPair(
                 pin_a        =self.led_pin_a, 
                 pin_b        =self.led_pin_b, 
-                T_ramp_max   =self.led_T_ramp_max, 
+                T_ramp      =self.led_T_ramp_max, 
                 duty_a       =self.led_duty_a, 
                 duty_b_factor=self.led_duty_b_factor, 
                 f_pwm        =self.led_f_pwm)
-            self.light_sensor = bh1750.BH1750()
+            self.light_sensor = BH1750(lux_max=config["light_sensor"]["shut_down_at_lux"])
+            time.sleep(1)
         except Exception as e:
             print(f"Error initializing MotionSensor on pin {pin}: {e}")
             raise
@@ -78,9 +76,8 @@ class LEDControl:
             # Measure light level
             lux = self.light_sensor.read_lux()
             print("Motion detected at lux value: {:.4f}".format(lux))
-            if b_led_is_on == False:
-                # Ramp up the LED strip
-                self.led.ramp_ab( 
+            if b_led_is_on == False:                
+                self.led.ramp_ab( # Ramp up the LED strip
                     duty_start=duty_start, duty_end=duty_end, b_print=b_print_led)
                 b_led_is_on = True
             time.sleep(math.ceil(timeout/2))
@@ -88,22 +85,19 @@ class LEDControl:
         elif not self.pir.motion_detected :
             wait_for_motion_state = self.pir.wait_for_motion(timeout=timeout*2)
             if wait_for_motion_state:
-                # A motion event occurred
-                print("wait_for_motion_state = True")
+                print("A motion event occurred: wait_for_motion_state = True")
                 return b_led_is_on
             else:
-                # No motion event within timeout
-                print("wait_for_motion_state = False")
+                print("No motion event within timeout: wait_for_motion_state = False")
 
             if b_led_is_on and not wait_for_motion_state:
                 print("Turning off LED due to no motion.")
-                # Ramp down the LED strip
-                self.led.ramp_ab(
+                self.led.ramp_ab( # Ramp down the LED strip
                     duty_start=duty_end, duty_end=duty_start, b_print=b_print_led)
                 b_led_is_on = False
             return b_led_is_on
 
-    def light_on_motion_loop(self, duty_start=0, duty_end=40, timeout=4.0, b_print_led=False, b_led_is_on=False) -> None:
+    def light_on_motion_loop(self, duty_start=0, duty_end=40, timeout=4.0, b_led_is_on=False, b_print_led=False) -> None:
         """
         Run a blocking loop that waits for motion and prints on detection.
 
@@ -111,15 +105,28 @@ class LEDControl:
         Ctrl-C. It uses GPIO.wait_for_edge which blocks efficiently.
         """
         try:
+            b_led_is_on = False
             while True:
-                b_led_is_on = self.light_on_motion( 
-                    duty_start, duty_end, timeout, b_led_is_on=b_led_is_on, b_print_led=b_print_led)
+                b_led_is_on = self.light_on_motion(duty_start, duty_end, timeout, b_led_is_on=b_led_is_on, b_print_led=b_print_led)
                 time.sleep(0.1)
         except KeyboardInterrupt:
             print("Program interrupted by user.")
         finally:
             self.close()
 
+    def light_on_motion_lux_loop(self, duty_start=0, duty_end=40, timeout=4.0, b_led_is_on=False, b_print_led=True) -> None:
+        try:
+            b_led_is_on = False
+            while True:
+                if not b_led_is_on:
+                    duty_end_dynamic = self.light_sensor.lux_to_duty_cycle(self.light_sensor.read_lux())
+                    print("####### LED is off. Based on lux Dynamic duty_end:", duty_end_dynamic)
+                b_led_is_on = self.light_on_motion(duty_start, duty_end_dynamic, timeout, b_led_is_on=b_led_is_on, b_print_led=b_print_led)
+                time.sleep(0.1)
+        except KeyboardInterrupt:
+            print("Program interrupted by user.")
+        finally:
+            self.close()
 
     def close(self) -> None:
         """Cleanup only the pin used by this sensor.
@@ -148,5 +155,16 @@ class LEDControl:
                 print(f"Motion detected at {time.strftime('%Y-%m-%d %H:%M:%S')}")
                 self.pir.wait_for_no_motion()
                 print(f"No motion at       {time.strftime('%Y-%m-%d %H:%M:%S')}")
+        except KeyboardInterrupt:
+            print("Program interrupted by user.")
+
+    def debug_turn_led_on_2_seconds(self, duty_cycle=50) -> None:
+        """Turn on the LED for 2 seconds for debugging."""
+        try:
+            print("Turning on LED for 2 seconds at duty cycle {}%".format(duty_cycle))
+            self.led.set_pwm_a(duty_cycle)
+            time.sleep(2)
+            self.led.set_pwm_a(0)
+            print("LED turned off.")
         except KeyboardInterrupt:
             print("Program interrupted by user.")

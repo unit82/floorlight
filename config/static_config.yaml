@@ -6,3 +6,7 @@ pwm:
 
 led:
   T_ramp_max: 2 # Ramp time in seconds, when using the full range of duty cycle (0-100%)
+
+light_sensor:
+  shut_down_at_lux: 400 # Lux level at which the LED wont turn on anymore when motion is detected.
+  

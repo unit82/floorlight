@@ -4,6 +4,7 @@ import time
 import smbus
 from pathlib import Path
 import utils
+import math
 
 
 # Addresses depending on ADD pin:
@@ -26,13 +27,14 @@ ONE_TIME_LORES    = 0x23
 
 class BH1750:
     """Class for interfacing with the BH1750 light sensor via I2C."""
-    def __init__(self, addr=ADDR_LOW, mode=CONTINUOUS_HIRES_MODE):
+    def __init__(self, addr=ADDR_LOW, mode=CONTINUOUS_HIRES_MODE, lux_max=400):
         """
         Constructor: Initialize the BH1750 sensor.
         """
         self.addr = addr
         self.bus  = smbus.SMBus(1)
         self.mode = mode
+        self.lux_max = lux_max
         self._write(POWER_ON)
         time.sleep(0.02)
         self.set_mode(mode)
@@ -62,7 +64,29 @@ class BH1750:
         self.mode = mode
         self._write(mode)
 
-    def read_lux(self):
+    def lux_to_duty_cycle(self, lux, lux_min=0, duty_min=1, duty_max=100, b_print=True):
+        """
+        Convert lux value to duty cycle percentage. For low light levels, return duty_min. 
+        Until lux_max, linearly map to duty cycle. Above lux_max, return 0%.
+        Args:
+            lux (float): Measured light level in lux.
+            lux_min (float): Minimum lux threshold for duty cycle mapping.
+            duty_min (float): Minimum duty cycle percentage.
+            duty_max (float): Maximum duty cycle percentage.
+        """
+        if lux <= lux_min:
+            duty_cycle = duty_min
+        elif lux >= self.lux_max:
+            duty_cycle = 0
+        else:
+            # Linear mapping
+            duty_cycle_float = duty_min + (lux - lux_min) * (duty_max - duty_min) / (self.lux_max - lux_min)
+            # Ceil the result
+            duty_cycle = math.ceil(duty_cycle_float)
+        print("Converted lux {:.2f} to duty cycle {:.2f}%".format(lux, duty_cycle))
+        return duty_cycle
+
+    def read_lux(self, b_print=False):
         """
         Read light level in lux.
         """
@@ -77,4 +101,6 @@ class BH1750:
         data = self.bus.read_i2c_block_data(self.addr, self.mode)
         raw = (data[0] << 8) | data[1]
         lux = raw / 1.2
+        if b_print:
+            print("Measured light level: {:.2f} lux".format(lux))
         return lux

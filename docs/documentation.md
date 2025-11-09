@@ -203,3 +203,137 @@ Der Sensor kann auch zur **Datenprotokollierung** oder für **Hausautomationssys
 - CSV-Dateien (Langzeitprotokollierung)
 - MQTT-Broker (z. B. Home Assistant)
 - Web- oder Cloud-Dienste
+
+
+# pigpio
+
+Diese Anleitung beschreibt eine manuelle, zuverlässige Installation und Inbetriebnahme der pigpio-Bibliothek auf einem Raspberry Pi-System.
+
+---
+
+## 1️⃣ Abhängigkeiten installieren
+
+Zunächst werden die benötigten Pakete installiert:
+
+```bash
+sudo apt update
+sudo apt install -y python3-pip python3-setuptools python3-wheel python3-dev make g++ git
+```
+
+---
+
+## 2️⃣ Quellcode herunterladen
+
+Der Quellcode wird aus dem offiziellen GitHub-Repository bezogen:
+
+```bash
+cd ~
+git clone https://github.com/joan2937/pigpio.git
+cd pigpio
+```
+
+---
+
+## 3️⃣ Kompilieren und installieren
+
+Anschließend wird die Software kompiliert und installiert:
+
+```bash
+make
+sudo make install
+```
+
+Dabei werden folgende Komponenten eingerichtet:
+
+- **pigpiod** – der Hintergrunddienst (Daemon)  
+- **pigs** – das Kommandozeilen-Werkzeug  
+- **libpigpio.so** – die gemeinsam genutzte C-Bibliothek  
+
+---
+
+## 4️⃣ Überprüfung der Installation
+
+Es kann überprüft werden, ob der Daemon erfolgreich installiert wurde:
+
+```bash
+which pigpiod
+```
+
+Die Ausgabe sollte in der Regel **/usr/local/bin/pigpiod** lauten.
+
+---
+
+## 5️⃣ Start des Daemons
+
+Der pigpio-Daemon kann manuell gestartet werden:
+
+```bash
+sudo pigpiod -g
+```
+
+Für einen automatischen Start beim Systemstart kann eine Systemd-Service-Datei eingerichtet werden:
+
+```bash
+sudo nano /etc/systemd/system/pigpiod.service
+```
+
+### Inhalt der Service-Datei
+
+```ini
+[Unit]
+Description=Pigpio daemon
+After=network.target
+
+[Service]
+ExecStart=/usr/local/bin/pigpiod -g
+ExecStop=/bin/systemctl kill pigpiod
+Type=simple
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+```
+
+### Aktivierung des Dienstes
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable pigpiod
+sudo systemctl start pigpiod
+```
+
+Damit wird der Daemon bei jedem Systemstart automatisch ausgeführt.
+
+---
+
+## 6️⃣ Installation der Python-Bibliothek
+
+Die Python-Client-Bibliothek wird separat installiert:
+
+```bash
+pip install pigpio
+```
+
+Diese Bibliothek stellt die Schnittstelle dar, über die Python-Skripte mit dem pigpiod-Daemon kommunizieren.
+
+---
+
+## 🔍 Funktionstest
+
+Der pigpio-Daemon wird gestartet und anschließend die Verbindung über Python getestet:
+
+```bash
+sudo pigpiod -g
+python3
+```
+
+Im Python-Interpreter:
+
+```python
+import pigpio
+pi = pigpio.pi()
+print(pi.connected)
+pi.stop()
+```
+
+Wenn die Ausgabe **1** ergibt, ist die Verbindung erfolgreich und pigpio funktioniert korrekt.
