@@ -26,32 +26,27 @@ class LEDControl:
     close() to cleanup the GPIO for that pin.
     """
 
-    def __init__(self, config: dict, pin: int = 16, led_pin_a: int = 12, led_pin_b: int = 13, led_duty_a: float = 0.0, led_duty_b_factor: float = 0.25):
+    def __init__(self, config: dict, led_duty_b_factor: float = 0.25):
         # GPIO setup to BCM mode (explanation: https://pinout.xyz/pinout/bcm)
         try:
             self.config = config
             # Motion sensor related parameters
-            self.pin = int(pin)
-            self.pir = MotionSensor(self.pin)
+            self.pir_pin = int(config["motion_sensor"]["pin"])
+            self.pir     = MotionSensor(self.pir_pin)
 
             # LED related parameters
-            self.led_pin_a         = led_pin_a
-            self.led_pin_b         = led_pin_b
-            self.led_T_ramp_max    = config["led"]["T_ramp_max"]
-            self.led_duty_a        = led_duty_a
+            self.led_pin_a         = config["led"]["pin_a"]
+            self.led_pin_b         = config["led"]["pin_b"]
+            self.led_T_ramp        = config["led"]["T_ramp"]
             self.led_duty_b_factor = led_duty_b_factor
             self.led_f_pwm         = config["pwm"]["frequency"]
             self.led = LedPair(
-                pin_a        =self.led_pin_a, 
-                pin_b        =self.led_pin_b, 
-                T_ramp      =self.led_T_ramp_max, 
-                duty_a       =self.led_duty_a, 
-                duty_b_factor=self.led_duty_b_factor, 
-                f_pwm        =self.led_f_pwm)
+                config       =self.config,
+                duty_b_factor=self.led_duty_b_factor)
             self.light_sensor = BH1750(lux_max=config["light_sensor"]["shut_down_at_lux"])
             time.sleep(1)
         except Exception as e:
-            print(f"Error initializing MotionSensor on pin {pin}: {e}")
+            print(f"Error initializing MotionSensor: {e}")
             raise
 
     #########################################################

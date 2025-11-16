@@ -34,18 +34,10 @@ def main():
 
     led_ctrl = ledcontrol.LEDControl(
             config=config,
-            pin=16, 
-            led_pin_a=12, 
-            led_pin_b=13, 
-            led_duty_a=0, 
             led_duty_b_factor=1/4)
     led = LedPair(
-            pin_a=12,
-            pin_b=13,
-            T_ramp=2.0,
-            duty_a=0,
-            duty_b_factor=1/256,
-            f_pwm=200
+            config=led_ctrl.config,
+            duty_b_factor=led_ctrl.led_duty_b_factor
     )
     try:
         # led.ramp_ab(duty_start, duty_end, b_print=True)

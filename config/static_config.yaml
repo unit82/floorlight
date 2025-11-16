@@ -5,8 +5,12 @@ pwm:
   frequency: 200 # Frequency in Hz
 
 led:
-  T_ramp_max: 2 # Ramp time in seconds, when using the full range of duty cycle (0-100%)
+  T_ramp: 2 # Ramp time in seconds, when using the full range of duty cycle (0-100%)
+  pin_a: 12 # GPIO pin for LED channel A
+  pin_b: 13 # GPIO pin for LED channel B
+
+motion_sensor:
+  pin: 16 # GPIO pin for the PIR motion sensor
 
 light_sensor:
   shut_down_at_lux: 400 # Lux level at which the LED wont turn on anymore when motion is detected.
-  

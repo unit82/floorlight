@@ -52,20 +52,18 @@ class LedPair:
         duty_b_factor (float): Factor to determine duty cycle for LED B relative to LED A
         f_pwm (float): PWM frequency in Hz.
     """
-    def __init__(self, pin_a=12, pin_b=13, T_ramp=2.0, duty_a=0, duty_b_factor=1/2, f_pwm=200):
+    def __init__(self, config: dict, duty_b_factor=1/2):
         
         self.pwm = pigpio.pi()
         if not self.pwm.connected:
             raise RuntimeError("Keine Verbindung zu pigpiod – läuft der Daemon?")
 
         # Public attributes
-        self.pin_a         = pin_a
-        self.pin_b         = pin_b
-        self.T_ramp    = T_ramp  # Max ramp time in seconds
-        self.duty_a        = float(duty_a)  # Initial duty cycle for LED A (percent)
-        self.duty_b        = self.duty_a * self._clamp_duty_b_factor(duty_b_factor) 
+        self.pin_a         = config["led"]["pin_a"]
+        self.pin_b         = config["led"]["pin_b"]
+        self.T_ramp        = config["led"]["T_ramp"]
         self.duty_b_factor = self._clamp_duty_b_factor(duty_b_factor)
-        self.f_pwm         = f_pwm  # 200 Hz is a good default
+        self.f_pwm         = config["pwm"]["frequency"]  # 200 Hz is a good default
 
         # Private attributes (Constants)
         self._T_duty = self.T_ramp / (2*N_DUTY_MAX)
@@ -79,8 +77,8 @@ class LedPair:
         Returns:
             float: Clamped duty_b_factor.
         """
-        if duty_b_factor < 0.01:
-            return 0.01
+        if duty_b_factor < 0.001:
+            return 0.001
         elif duty_b_factor > 1.0:
             return 1.0
         return duty_b_factor
